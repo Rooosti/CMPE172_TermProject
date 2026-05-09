@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rent.it - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #000; }
+        .glass { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .tab-active { color: white; border-bottom: 2px solid white; }
+        .message-bubble { max-width: 80%; padding: 8px 12px; border-radius: 12px; font-size: 13px; margin-bottom: 8px; }
+        .message-sent { align-self: flex-end; background: white; color: black; border-bottom-right-radius: 2px; }
+        .message-received { align-self: flex-start; background: rgba(255,255,255,0.1); color: white; border-bottom-left-radius: 2px; }
+    </style>
+</head>
+<body class="text-white min-h-screen">
+    <div id="flash-container" class="fixed top-24 right-6 z-[100] space-y-4 w-80"></div>
+
+    <nav class="border-b border-white/10 px-6 py-4 flex justify-between items-center bg-black/40 backdrop-blur-md sticky top-0 z-50">
+        <a href="/" class="flex items-center space-x-2">
+            <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center"><div class="w-3 h-3 bg-black"></div></div>
+            <span class="font-medium tracking-tight text-xl">Rent.it</span>
+        </a>
+        <div class="flex items-center space-x-6">
+            <span class="text-white/40 text-sm" th:text="${username}">User</span>
+            <a href="/logout" class="text-xs uppercase tracking-widest text-white/60 hover:text-white">Sign Out</a>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto p-6 md:p-12 space-y-12">
+        <section th:if="${#lists.size(roles) > 1}" class="flex space-x-8 border-b border-white/5">
+            <a th:if="${roles.contains('RENTER')}" href="/dashboard?view=renter" class="pb-4 text-sm font-medium" th:classappend="${activeView == 'renter' ? 'tab-active' : 'text-white/40'}">Renter View</a>
+            <a th:if="${roles.contains('PROVIDER')}" href="/dashboard?view=provider" class="pb-4 text-sm font-medium" th:classappend="${activeView == 'provider' ? 'tab-active' : 'text-white/40'}">Provider View</a>
+            <a th:if="${roles.contains('ADMIN')}" href="/dashboard?view=admin" class="pb-4 text-sm font-medium" th:classappend="${activeView == 'admin' ? 'tab-active' : 'text-white/40'}">Admin View</a>
+        </section>
+
+        <!-- RENTER VIEW -->
+        <div th:if="${activeView == 'renter'}" class="space-y-12">
+            <section class="space-y-6">
+                <h3 class="text-white/40 text-xs uppercase tracking-widest font-semibold">Your Rentals</h3>
+                <div class="glass rounded-2xl overflow-hidden">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-white/5 border-b border-white/10 text-white/60">
+                            <tr><th class="px-6 py-4">Equipment</th><th class="px-6 py-4">Start</th><th class="px-6 py-4">End</th><th class="px-6 py-4">Price</th><th class="px-6 py-4 text-right">Status</th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            <tr th:each="booking : ${myBookings}">
+                                <td class="px-6 py-4" th:text="${booking.equipmentName}">Name</td>
+                                <td class="px-6 py-4 text-white/40" th:text="${#temporals.format(booking.startTime, 'MMM dd, HH:mm')}">Start</td>
+                                <td class="px-6 py-4 text-white/40" th:text="${#temporals.format(booking.endTime, 'MMM dd, HH:mm')}">End</td>
+                                <td class="px-6 py-4 font-mono" th:text="${'$' + booking.totalPrice}">$0</td>
+                                <td class="px-6 py-4 text-right"><span class="px-2 py-1 rounded-full text-[10px] bg-green-500/20 text-green-400" th:text="${booking.status}">Status</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <section class="space-y-6">
+                <h3 class="text-white/40 text-xs uppercase tracking-widest font-semibold">Available for Rent</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div th:each="item : ${equipmentList}" class="glass p-6 rounded-2xl relative group">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="text-xl font-medium truncate" th:text="${item.name}">Name</h4>
+                            <span class="text-white font-mono text-sm" th:text="${'$' + item.hourlyRate + '/hr'}">$0</span>
+                        </div>
+                        <p class="text-white/40 text-sm mb-6 h-10 overflow-hidden" th:text="${item.description}">Desc</p>
+                        <form action="/book" method="POST" class="space-y-4">
+                            <input type="hidden" name="equipmentId" th:value="${item.equipmentId}">
+                            <input type="text" name="startTime" placeholder="Start Date & Time" required class="datetime-picker w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs">
+                            <input type="number" name="durationHours" placeholder="Hours" required min="1" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs">
+                            <button type="submit" class="w-full bg-white text-black py-2 rounded-lg text-sm font-medium">Book Now</button>
+                        </form>
+                        <div class="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100">
+                            <button th:data-pid="${item.providerId}" th:data-eid="${item.equipmentId}" onclick="openChatWithProvider(this.getAttribute('data-pid'), this.getAttribute('data-eid'))" class="text-white/40 hover:text-white">Chat</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- PROVIDER VIEW -->
+        <div th:if="${activeView == 'provider'}" class="space-y-12">
+            <section class="space-y-6">
+                <h3 class="text-white/40 text-xs uppercase tracking-widest font-semibold">Incoming Appointments</h3>
+                <div class="glass rounded-2xl overflow-hidden">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-white/5 border-b border-white/10 text-white/60">
+                            <tr><th class="px-6 py-4">Equipment</th><th class="px-6 py-4">Window</th><th class="px-6 py-4 text-right">Status</th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            <tr th:each="booking : ${incomingBookings}">
+                                <td class="px-6 py-4 font-medium" th:text="${booking.equipmentName}">Item</td>
+                                <td class="px-6 py-4 text-white/40" th:text="${#temporals.format(booking.startTime, 'MMM dd, HH:mm') + ' - ' + #temporals.format(booking.endTime, 'MMM dd, HH:mm')}">Time</td>
+                                <td class="px-6 py-4 text-right"><span class="px-2 py-1 rounded-full text-[10px] bg-blue-500/20 text-blue-400">BOOKED</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <section class="space-y-6">
+                <h3 class="text-white/40 text-xs uppercase tracking-widest font-semibold">Your Equipment</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div th:each="item : ${myEquipment}" class="glass p-6 rounded-2xl">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="text-xl font-medium" th:text="${item.name}">Name</h4>
+                            <form action="/equipment/deactivate" method="POST">
+                                <input type="hidden" name="equipmentId" th:value="${item.equipmentId}">
+                                <input type="hidden" name="deactivated" th:value="${!item.isDeactivated}">
+                                <button type="submit" class="px-3 py-1 border border-white/20 rounded text-[10px] uppercase" th:text="${item.isDeactivated ? 'Activate' : 'Deactivate'}">Toggle</button>
+                            </form>
+                        </div>
+                        <p class="text-white/40 text-sm mb-4" th:text="${item.description}">Desc</p>
+                        <div class="flex justify-between items-center pt-4 border-t border-white/5">
+                            <span class="text-white/60 text-xs font-mono" th:text="${'$' + item.hourlyRate + '/hr'}">$0</span>
+                            <form action="/equipment/delete" method="POST"><input type="hidden" name="equipmentId" th:value="${item.equipmentId}"><button type="submit" class="text-red-500 text-xs">Delete</button></form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ADMIN VIEW -->
+        <div th:if="${activeView == 'admin'}" class="space-y-12">
+            <section class="space-y-6">
+                <h3 class="text-red-400 text-xs uppercase tracking-widest font-semibold">Reported Listings</h3>
+                <div class="glass rounded-2xl overflow-hidden">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-red-500/10 border-b border-white/10 text-red-400/60">
+                            <tr><th class="px-6 py-4">Item</th><th class="px-6 py-4">Provider</th><th class="px-6 py-4 text-right">Actions</th></tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            <tr th:each="item : ${reportedEquipment}">
+                                <td class="px-6 py-4 font-medium" th:text="${item.name}">Name</td>
+                                <td class="px-6 py-4 text-white/40" th:text="${item.providerId}">ID</td>
+                                <td class="px-6 py-4 text-right space-x-2">
+                                    <form action="/equipment/delete" method="POST" class="inline"><input type="hidden" name="equipmentId" th:value="${item.equipmentId}"><input type="hidden" name="redirectView" value="admin"><button type="submit" class="text-red-500">Delete</button></form>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- CHAT WIDGET -->
+    <div class="fixed bottom-6 right-6 z-[1000] flex flex-col items-end">
+        <div id="chat-widget" class="hidden w-80 h-[450px] glass bg-black/90 rounded-2xl shadow-2xl overflow-hidden mb-4 flex flex-col border border-white/20">
+            <div class="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+                <div class="flex flex-col"><span class="text-sm font-semibold">Messages</span><span id="chat-subtitle" class="text-[10px] text-white/40 uppercase">Select a user</span></div>
+                <button onclick="toggleChat()" class="text-white/40">&times;</button>
+            </div>
+            <div id="chat-content" class="flex-1 flex flex-col overflow-hidden">
+                <div id="user-list" class="flex-1 overflow-y-auto divide-y divide-white/5">
+                    <div th:each="u : ${chatUsers}" th:data-id="${u.userId}" th:data-name="${u.username}" onclick="selectChatUser(this.getAttribute('data-id'), this.getAttribute('data-name'))" class="p-4 hover:bg-white/5 cursor-pointer flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs" th:text="${#strings.substring(u.username,0,1)}">U</div>
+                        <span class="text-sm" th:text="${u.username}">User</span>
+                    </div>
+                </div>
+                <div id="equipment-list" class="hidden flex-1 overflow-y-auto divide-y divide-white/5"></div>
+                <div id="messages-view" class="hidden flex-1 flex flex-col overflow-hidden">
+                    <div id="message-container" class="flex-1 overflow-y-auto p-4 flex flex-col"></div>
+                    <div class="p-3 bg-white/5 border-t border-white/10 flex space-x-2">
+                        <input type="text" id="chat-input" placeholder="Message..." class="flex-1 bg-transparent border border-white/20 rounded-lg px-3 py-2 text-sm focus:outline-none">
+                        <button onclick="sendChatMessage()" class="bg-white text-black px-3 py-1 rounded-lg">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button onclick="toggleChat()" class="w-14 h-14 bg-white text-black rounded-full shadow-2xl flex items-center justify-center">Chat</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script th:inline="javascript">
+        const currentUserId = /*[[${currentUserId}]]*/ 0;
+        let selectedUserId = null, selectedEquipmentId = null, chatPoll = null;
+        function toggleChat() { document.getElementById('chat-widget').classList.toggle('hidden'); }
+        function selectChatUser(id, name) {
+            selectedUserId = id; document.getElementById('chat-subtitle').innerText = 'Chat with ' + name;
+            document.getElementById('user-list').classList.add('hidden'); document.getElementById('equipment-list').classList.remove('hidden');
+            fetch(`/api/chat/equipment?otherUserId=${id}`).then(r => r.json()).then(data => {
+                const list = document.getElementById('equipment-list');
+                list.innerHTML = '<button onclick="backToUserList()" class="w-full p-2 text-[10px] text-white/40 uppercase">← Back</button>';
+                data.forEach(item => {
+                    const div = document.createElement('div'); div.className = 'p-4 hover:bg-white/5 cursor-pointer text-sm';
+                    div.innerText = item.name; div.onclick = () => selectEquipment(item.equipmentId, item.name);
+                    list.appendChild(div);
+                });
+            });
+        }
+        function selectEquipment(id, name) {
+            selectedEquipmentId = id; document.getElementById('chat-subtitle').innerText = name;
+            document.getElementById('equipment-list').classList.add('hidden'); document.getElementById('messages-view').classList.remove('hidden');
+            loadChat(); chatPoll = setInterval(loadChat, 3000);
+        }
+        function backToUserList() { selectedUserId = null; document.getElementById('user-list').classList.remove('hidden'); document.getElementById('equipment-list').classList.add('hidden'); }
+        function loadChat() {
+            if (!selectedUserId || !selectedEquipmentId) return;
+            fetch(`/api/chat/history?otherUserId=${selectedUserId}&equipmentId=${selectedEquipmentId}`).then(r => r.json()).then(data => {
+                const container = document.getElementById('message-container'); container.innerHTML = '';
+                data.forEach(msg => {
+                    const div = document.createElement('div'); div.className = `message-bubble ${msg.senderId == currentUserId ? 'message-sent' : 'message-received'}`;
+                    div.innerText = msg.content; container.appendChild(div);
+                });
+                container.scrollTop = container.scrollHeight;
+            });
+        }
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input'); const content = input.value.trim(); if (!content) return;
+            const params = new URLSearchParams(); params.append('receiverId', selectedUserId); params.append('equipmentId', selectedEquipmentId); params.append('content', content);
+            fetch('/api/chat/send', { method: 'POST', body: params }).then(() => { input.value = ''; loadChat(); });
+        }
+        function openChatWithProvider(pid, eid) { toggleChat(); selectChatUser(pid, 'Provider'); selectEquipment(eid, 'Loading...'); }
+        flatpickr(".datetime-picker", { enableTime: true, dateFormat: "Y-m-d H:i", minDate: "today", time_24hr: true });
+        function flash(m, t = 'success') {
+            const c = document.getElementById('flash-container'), n = document.createElement('div');
+            n.className = `p-4 rounded-xl shadow-2xl ${t === 'success' ? 'bg-white text-black' : 'bg-red-500 text-white'}`;
+            n.innerText = m; c.appendChild(n); setTimeout(() => n.remove(), 5000);
+        }
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('success')) flash(urlParams.get('success') === 'booked' ? 'Booking confirmed!' : 'Success!');
+        if (urlParams.has('error')) flash(decodeURIComponent(urlParams.get('error')), 'error');
+    </script>
+</body>
+</html>
